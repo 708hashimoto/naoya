@@ -1,0 +1,96 @@
+package servlet;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+public class CreateUserCheck1 extends HttpServlet {
+
+    protected Connection conn = null;
+
+    public void init() throws ServletException{
+        String url = "jdbc:mysql://localhost/servletschedule";
+        String user = "scheduleuser";
+        String password = "schedulepass";
+
+        try {
+            Class.forName("com.mysql.jdbc.Driver").newInstance();
+            conn = DriverManager.getConnection(url, user, password);
+        }catch (ClassNotFoundException e){
+            log("ClassNotFoundException:" + e.getMessage());
+        }catch (SQLException e){
+            log("SQLException:" + e.getMessage());
+        }catch (Exception e){
+            log("Exception:" + e.getMessage());
+        }
+    }
+
+    public void destory(){
+        try{
+            if (conn != null){
+                conn.close();
+            }
+        }catch (SQLException e){
+            log("SQLException:" + e.getMessage());
+        }
+    }
+
+    public void doPost(HttpServletRequest req, HttpServletResponse res)
+        throws IOException, ServletException{
+
+        res.setContentType("text/html; charset=Windows-31J");
+        PrintWriter out = res.getWriter();
+
+        String user = req.getParameter("user");
+        String pass = req.getParameter("pass");
+        String rollStr = req.getParameter("roll");
+        int roll;
+        if (rollStr == null || rollStr.length() == 0){
+            roll = -1;
+        }else{
+            roll = Integer.parseInt(rollStr);
+        }
+
+        HttpSession session = req.getSession(true);
+
+        boolean check = createUser(user, pass, roll);
+        if (check){
+            session.setAttribute("CreateUserCheck", "Success");
+            res.sendRedirect("/schedule/servlet/NewUser1");
+        }else{
+            session.setAttribute("CreateUserCheck", "Fail");
+            res.sendRedirect("/schedule/servlet/NewUser1");
+        }
+    }
+
+    protected boolean createUser(String user, String pass, int roll){
+        if (user == null || user.length() == 0 || pass == null || pass.length() == 0 || roll == -1){
+            return false;
+        }
+
+        try {
+
+            String sql = "insert into usertable (user, pass, roll) values (?, ?, ?)";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+
+            pstmt.setString(1, user);
+            pstmt.setString(2, pass);
+            pstmt.setInt(3, roll);
+            int num = pstmt.executeUpdate();
+
+            return true;
+        }catch (SQLException e){
+            log("SQLException:" + e.getMessage());
+            return false;
+        }
+    }
+}
