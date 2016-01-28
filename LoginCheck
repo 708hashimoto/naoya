@@ -1,0 +1,105 @@
+package servlet;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+public class LoginCheck1 extends HttpServlet {
+
+    protected Connection conn = null;
+
+    public void init() throws ServletException{
+    	 String url = "jdbc:mysql://localhost/servletschedule";
+         String user = "scheduleuser";
+         String password = "schedulepass";
+
+
+        try {
+            Class.forName("com.mysql.jdbc.Driver").newInstance();
+            conn = DriverManager.getConnection(url, user, password);
+        }catch (ClassNotFoundException e){
+            log("ClassNotFoundException:" + e.getMessage());
+        }catch (SQLException e){
+            log("SQLException:" + e.getMessage());
+        }catch (Exception e){
+            log("Exception:" + e.getMessage());
+        }
+    }
+
+    public void destory(){
+        try{
+            if (conn != null){
+                conn.close();
+            }
+        }catch (SQLException e){
+            log("SQLException:" + e.getMessage());
+        }
+    }
+
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws IOException, ServletException{
+
+        response.setContentType("text/html; charset=Windows-31J");
+        PrintWriter out = response.getWriter();
+
+        String user = request.getParameter("user");
+        String pass = request.getParameter("pass");
+
+        HttpSession session = request.getSession(true);
+
+        boolean check = authUser(user, pass, session);
+        if (check){
+            /* 認証済みにセット */
+            session.setAttribute("login", "OK");
+
+            /* 認証成功後は必ずMonthViewサーブレットを呼びだす */
+            response.sendRedirect("/schedule/servlet/MonthView9");
+        }else{
+            /* 認証に失敗したら、ログイン画面に戻す */
+            session.setAttribute("status", "Not Auth");
+            response.sendRedirect("/schedule/servlet/LoginPage1");
+        }
+    }
+
+    protected boolean authUser(String user, String pass, HttpSession session){
+        if (user == null || user.length() == 0 || pass == null || pass.length() == 0){
+            return false;
+        }
+
+        try {
+            String sql = "SELECT * FROM usertable WHERE user = ? && pass = ?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+
+            pstmt.setString(1, user);
+            pstmt.setString(2, pass);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()){
+                int userid = rs.getInt("id");
+                int roll = rs.getInt("roll");
+                String username = rs.getString("user");
+
+                session.setAttribute("userid", Integer.toString(userid));
+                session.setAttribute("roll", Integer.toString(roll));
+                session.setAttribute("username", username);
+
+                return true;
+            }else{
+                return false;
+            }
+        }catch (SQLException e){
+            log("SQLException:" + e.getMessage());
+            return false;
+        }
+    }
+}
